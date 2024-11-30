@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="member">
+	<select id="checkEmailExists" resultType="int">
+		SELECT COUNT(*) FROM MEMBER WHERE MEMBER_EMAIL = #{email}
+	</select>
+	
+	<insert id="insertMember">
+		INSERT INTO MEMBER (MEMBER_EMAIL, MEMBER_PWD, MEMBER_NAME, COMPANY_NAME, CREATE_AT, UPDATE_AT, MEMBER_NUMBER)
+		VALUES(#{email},#{password},#{name},#{companyName},CURRENT_TIMESTAMP,CURRENT_TIMESTAMP, MEMBER_SEQ.NEXTVAL)
+	</insert>
+	
+	<select id="findByEmail" resultType="com.dallam.backend.model.Member">
+		SELECT MEMBER_EMAIL AS email,
+			   MEMBER_PWD AS password,
+			   MEMBER_NAME AS name,
+			   COMPANY_NAME AS companyName,
+			   CREATE_AT AS createAt,
+			   UPDATE_AT AS updateAt
+		FROM MEMBER
+		WHERE MEMBER_EMAIL = #{email}
+	</select>
+	
+	<select id="getMemberInfo" resultType="com.dallam.backend.dto.response.MemberDetailResponse">
+		SELECT M.MEMBER_EMAIL AS email,
+		       M.MEMBER_NAME AS name,
+		       M.COMPANY_NAME AS companyName,
+		       M.CREATE_AT AS createAt,
+		       M.UPDATE_AT AS updateAt,
+		       UP.IMAGE_URL AS image,
+		       COALESCE(LISTAGG(UM.MEETING_ID, ',') WITHIN GROUP (ORDER BY UM.MEETING_ID),'0') AS id
+		FROM MEMBER M
+		LEFT JOIN USER_PROFILE_IMAGE UP ON M.MEMBER_EMAIL = UP.MEMBER_EMAIL
+		LEFT JOIN USER_MEETING UM ON M.MEMBER_EMAIL = UM.MEMBER_EMAIL
+		WHERE M.MEMBER_EMAIL = #{email}
+		GROUP BY M.MEMBER_EMAIL, M.MEMBER_PWD, M.MEMBER_NAME, M.COMPANY_NAME, M.CREATE_AT, M.UPDATE_AT, UP.IMAGE_URL
+
+	</select>
+	
+	<select id="findByImageUrl" resultType="String">
+		SELECT IMAGE_URL
+		FROM USER_PROFILE_IMAGE
+		WHERE MEMBER_EMAIL = #{email}
+	</select>
+	
+	<update id="updateMember" parameterType="map">
+		UPDATE MEMBER
+		SET COMPANY_NAME = #{companyName},
+			UPDATE_AT = CURRENT_TIMESTAMP
+		WHERE MEMBER_EMAIL = #{email}
+	</update>
+	
+	<insert id="insertImage" parameterType="map">
+		INSERT INTO USER_PROFILE_IMAGE 
+		VALUES(#{email},
+				#{imageUrl},
+				#{imageName},
+				CURRENT_TIMESTAMP)
+	</insert>
+	
+	<update id="updateImage" parameterType="map">
+		UPDATE USER_PROFILE_IMAGE
+		SET IMAGE_URL = #{imageUrl},
+			IMAGE_NAME = #{imageName},
+			UPLOADED_AT = CURRENT_TIMESTAMP
+		WHERE MEMBER_EMAIL = #{email}
+	</update>
+	
+	
+</mapper>

@@ -1,0 +1,335 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="gatherings">
+	<insert id="createGathering">
+		INSERT INTO MEETING 
+		(MEETING_ID, MEMBER_EMAIL, MEETING_LOCATION, 
+		MEETING_TYPE, MEETING_NAME, MEETING_DATE, MEETING_CAPACITY, 
+		MEETING_PARTICIPANTCOUNT, MEETING_REGISTRATIONEND, MEETING_CREATEDBY)
+		VALUES(MEETING_SEQ.NEXTVAL, #{email}, #{location},
+				#{type}, #{name}, TO_DATE(#{dateTime}, 'YYYY-MM-DD HH24:MI:SS'), #{capacity},
+				1, TO_DATE(#{registrationEnd}, 'YYYY-MM-DD HH24:MI:SS'), (SELECT MEMBER_NUMBER FROM MEMBER WHERE MEMBER_EMAIL = #{email}))
+	</insert>
+	
+	<select id="meetingId" parameterType="com.dallam.backend.dto.request.GatheringsCreateRequest" resultType="int">
+    	SELECT MEETING_SEQ.CURRVAL FROM DUAL
+	</select>
+	
+	<insert id="createuserMeeting">
+		INSERT INTO USER_MEETING (MEMBER_EMAIL, MEETING_ID, MEETING_JOINEDAT, REVIEW_ID)
+		VALUES (#{email}, #{meetingId}, CURRENT_TIMESTAMP, REVIEW_ID_SEQ.NEXTVAL)
+	</insert>
+	
+	<insert id="createMeetingImage" parameterType="map">
+		INSERT INTO MEETING_IMAGE
+		VALUES(#{meetingId},
+				#{imageUrl},
+				#{imageName},
+				CURRENT_TIMESTAMP)
+	</insert>
+	
+	<select id="meetings" resultType="com.dallam.backend.dto.response.GatheringsCreateResponse">
+		SELECT M.MEETING_ID AS id, 
+	       M.MEETING_TYPE AS type, 
+	       M.MEETING_NAME AS name, 
+	       M.MEETING_DATE AS dateTime, 
+	       M.MEETING_REGISTRATIONEND AS registrationEnd , 
+	       M.MEETING_LOCATION AS location, 
+	       M.MEETING_PARTICIPANTCOUNT AS participantCount, 
+	       M.MEETING_CAPACITY AS capacity, 
+	       LISTAGG(MI.IMAGE_URL, ',') WITHIN GROUP (ORDER BY MI.IMAGE_URL) AS image,
+	       M.MEETING_CREATEDBY AS createdBy
+		FROM MEETING M
+		LEFT JOIN MEETING_IMAGE MI ON M.MEETING_ID = MI.MEETING_ID
+		WHERE M.MEMBER_EMAIL = #{email}
+		AND	M.MEETING_ID = #{meetingId}
+		GROUP BY M.MEETING_ID, 
+		         M.MEETING_TYPE, 
+		         M.MEETING_NAME, 
+		         M.MEETING_DATE, 
+		         M.MEETING_REGISTRATIONEND, 
+		         M.MEETING_LOCATION, 
+		         M.MEETING_PARTICIPANTCOUNT, 
+		         M.MEETING_CAPACITY, 
+		         M.MEETING_CREATEDBY
+	</select>
+	
+	<select id="gatheringsSelectList" resultType="com.dallam.backend.dto.response.GatheringsSelectListResponse" parameterType="com.dallam.backend.dto.request.GatheringsSelectListRequest">
+        SELECT 
+            m.MEETING_ID AS id,
+            m.MEETING_TYPE AS type,
+            m.MEETING_NAME AS name,
+            m.MEETING_DATE AS dateTime,
+            m.MEETING_REGISTRATIONEND AS registrationEnd,
+            m.MEETING_LOCATION AS location,
+            m.MEETING_PARTICIPANTCOUNT AS participantCount,
+            m.MEETING_CAPACITY AS capacity,
+            LISTAGG(mi.IMAGE_URL, ',') WITHIN GROUP (ORDER BY mi.IMAGE_URL) AS image,  <!-- 이미지 컬럼 -->
+            m.MEETING_CREATEDBY AS createdBy,
+            m.MEETING_CANCELDAT AS canceledAt
+        FROM MEETING m
+        LEFT JOIN MEETING_IMAGE mi ON m.MEETING_ID = mi.MEETING_ID
+        WHERE 1=1
+        	AND m.MEETING_CANCELDAT IS NULL
+        <if test="idList != null">
+            AND m.MEETING_ID IN 
+            <foreach item="item" collection="idList" open="(" separator="," close=")">
+                #{item}
+            </foreach>
+        </if>
+        <if test="type != null">
+            AND m.MEETING_TYPE = #{type}
+        </if>
+        <if test="location != null">
+            AND m.MEETING_LOCATION = #{location}
+        </if>
+        <if test="date != null">
+            AND TO_CHAR(m.MEETING_DATE, 'YYYY-MM-DD') = #{date}
+        </if>
+        <if test="createBy > 0">
+            AND m.MEETING_CREATEDBY = #{createdBy}
+        </if>
+        GROUP BY m.MEETING_ID, m.MEETING_TYPE, m.MEETING_NAME, m.MEETING_DATE, m.MEETING_REGISTRATIONEND, 
+             m.MEETING_LOCATION, m.MEETING_PARTICIPANTCOUNT, m.MEETING_CAPACITY, m.MEETING_CREATEDBY, m.MEETING_CANCELDAT
+        <if test="sortBy != null">
+            ORDER BY 
+            <choose>
+                <when test="sortBy == 'dateTime'">m.MEETING_DATE</when>
+                <when test="sortBy == 'registrationEnd'">m.MEETING_REGISTRATIONEND</when>
+                <when test="sortBy == 'participantCount'">m.MEETING_PARTICIPANTCOUNT</when>
+            </choose>
+            <choose>
+                <when test="sortOrder == 'desc'">DESC</when>
+                <otherwise>ASC</otherwise>
+            </choose>
+        </if>
+        <if test="offset >= 0">
+            OFFSET #{offset} ROWS
+        </if>
+        <if test="limit > 0">
+            FETCH FIRST #{limit} ROWS ONLY
+        </if>
+    </select>
+    
+    <select id="gatheringsjoinedList" resultType="com.dallam.backend.dto.response.GatheringsjoinedListResponse" parameterType="com.dallam.backend.dto.request.GatheringsjoinedListRequest">
+    	SELECT 
+    		UM.MEETING_ID AS id,
+            M.MEETING_TYPE AS type,
+            M.MEETING_NAME AS name,
+            M.MEETING_DATE AS dateTime,
+            M.MEETING_REGISTRATIONEND AS registrationEnd,
+            M.MEETING_LOCATION AS location,
+            M.MEETING_PARTICIPANTCOUNT AS participantCount,
+            M.MEETING_CAPACITY AS capacity,
+            LISTAGG(MI.IMAGE_URL, ',') WITHIN GROUP (ORDER BY MI.IMAGE_URL) AS image,  <!-- 이미지 컬럼 -->
+            M.MEETING_CREATEDBY AS createdBy,
+            M.MEETING_CANCELDAT AS canceledAt,
+            UM.MEETING_JOINEDAT AS joinedAt,
+    		CASE 
+		        WHEN UM.MEETING_PARTICIPATION = 'Y' THEN 'true'
+		        WHEN UM.MEETING_PARTICIPATION = 'N' THEN 'false'
+		        ELSE NULL
+		    END AS isCompleted,
+		    CASE 
+		        WHEN UM.MEETING_REVIEWED = 'Y' THEN 'true'
+		        WHEN UM.MEETING_REVIEWED = 'N' THEN 'false'
+		        ELSE NULL
+		    END AS isReviewed
+    	FROM USER_MEETING UM
+    	JOIN MEETING M ON UM.MEETING_ID = M.MEETING_ID
+    	LEFT JOIN MEETING_IMAGE MI ON M.MEETING_ID = MI.MEETING_ID
+    	WHERE
+    		UM.MEMBER_EMAIL = #{email}
+    		<if test="completed == false">
+	    		AND UM.MEETING_PARTICIPATION = 'N'    		
+    		</if>
+    		<if test="completed == true">
+	    		AND UM.MEETING_PARTICIPATION = 'Y'    		
+    		</if>
+    		<if test="reviewed == false">
+	    		AND UM.MEETING_REVIEWED = 'N'  		
+    		</if>
+    		<if test="reviewed == true">
+	    		AND UM.MEETING_REVIEWED = 'Y'  		
+    		</if>
+    	GROUP BY UM.MEETING_ID, M.MEETING_TYPE, M.MEETING_NAME, 
+	    	M.MEETING_DATE, M.MEETING_REGISTRATIONEND, M.MEETING_LOCATION, 
+	    	M.MEETING_PARTICIPANTCOUNT, M.MEETING_CAPACITY, M.MEETING_CREATEDBY, 
+	    	M.MEETING_CANCELDAT, UM.MEETING_JOINEDAT, UM.MEETING_PARTICIPATION, 
+	    	UM.MEETING_REVIEWED
+    		ORDER BY 
+    		<choose>
+                <when test="sortBy == 'registrationEnd'">M.MEETING_REGISTRATIONEND</when>
+                <when test="sortBy == 'joinedAt'">UM.MEETING_JOINEDAT</when>
+                <otherwise>m.MEETING_DATE</otherwise>
+    		</choose>
+    		<choose>
+                <when test="sortOrder == 'desc'">DESC</when>
+                <otherwise>ASC</otherwise>
+            </choose>
+            <if test="offset >= 0">
+            	OFFSET #{offset} ROWS
+	        </if>
+	        <if test="limit > 0">
+	            FETCH FIRST #{limit} ROWS ONLY
+	        </if>
+    </select>
+	
+	<select id="gatheringsById" resultType="com.dallam.backend.dto.response.GatheringDetailResponse" parameterType="int">
+		SELECT 
+			M.MEETING_ID AS id,
+            M.MEETING_TYPE AS type,
+            M.MEETING_NAME AS name,
+            M.MEETING_DATE AS dateTime,
+            M.MEETING_REGISTRATIONEND AS registrationEnd,
+            M.MEETING_LOCATION AS location,
+            M.MEETING_PARTICIPANTCOUNT AS participantCount,
+            M.MEETING_CAPACITY AS capacity,
+            LISTAGG(MI.IMAGE_URL, ',') WITHIN GROUP (ORDER BY MI.IMAGE_URL) AS image,  <!-- 이미지 컬럼 -->
+            M.MEETING_CREATEDBY AS createdBy,
+            M.MEETING_CANCELDAT AS canceledAt
+		FROM MEETING M
+		LEFT JOIN MEETING_IMAGE MI ON M.MEETING_ID = MI.MEETING_ID
+		WHERE
+			M.MEETING_ID = #{id}
+		GROUP BY M.MEETING_ID, M.MEETING_TYPE, M.MEETING_NAME, 
+	    	M.MEETING_DATE, M.MEETING_REGISTRATIONEND, M.MEETING_LOCATION, 
+	    	M.MEETING_PARTICIPANTCOUNT, M.MEETING_CAPACITY, M.MEETING_CREATEDBY, 
+	    	M.MEETING_CANCELDAT
+	</select>
+	
+	<select id="gatheringsByIdCheck" resultType="int">
+		SELECT COUNT(*) FROM MEETING WHERE MEETING_ID = #{id}
+	</select>
+	
+	<select id="findParticipants" parameterType="map" resultType="map">
+		SELECT 
+		    M1.MEMBER_NAME AS "userId",
+		    UM.MEETING_ID AS "gatheringId",
+		    UM.MEETING_JOINEDAT AS "joinedAt",
+		    M2.MEMBER_NUMBER AS "participantNumber",
+		    M2.MEMBER_EMAIL AS "participantEmail",
+		    M2.MEMBER_NAME AS "participantName",
+		    M2.COMPANY_NAME AS "participantCompany",
+		    PI.IMAGE_URL AS "participantImage"
+		FROM USER_MEETING UM
+		JOIN MEMBER M1 ON UM.MEMBER_EMAIL = M1.MEMBER_EMAIL
+		JOIN MEMBER M2 ON UM.MEMBER_EMAIL = M2.MEMBER_EMAIL 
+		LEFT JOIN USER_PROFILE_IMAGE PI ON M2.MEMBER_EMAIL = PI.MEMBER_EMAIL
+		WHERE UM.MEETING_ID = #{id}
+		ORDER BY UM.MEETING_JOINEDAT ASC
+		OFFSET #{offset} ROWS 
+		FETCH NEXT #{limit} ROWS ONLY
+	</select>
+	
+	<select id="authority" resultType="int">
+		SELECT COUNT(*) 
+		FROM MEETING 
+		WHERE MEMBER_EMAIL = #{email}
+		AND MEETING_ID = #{meetingId}
+		AND MEETING_DATE > CURRENT_TIMESTAMP 
+		AND MEETING_CANCELDAT IS NULL
+	</select>
+	
+	<update id="meetingCancel" parameterType="com.dallam.backend.dto.request.GatheringsCancelRequest">
+		UPDATE MEETING
+		SET MEETING_CANCELDAT = CURRENT_TIMESTAMP
+		WHERE MEETING_ID = #{meetingId}
+		AND	MEMBER_EMAIL = #{email}
+	</update>
+	
+	<update id="userCancel" parameterType="map">
+		UPDATE USER_MEETING
+		SET MEETING_CANCEL = 'Y'
+		WHERE MEETING_ID = #{meetingId}
+		AND EXISTS (
+			SELECT 1
+			FROM MEETING
+			WHERE MEETING_ID = #{meetingId}
+			AND MEETING_CANCELDAT IS NOT NULL
+		)
+	</update>
+	
+	<select id="gatheringsCancel" parameterType="map" resultType="com.dallam.backend.dto.response.GatheringsCancelResponse">
+	    SELECT M.MEETING_ID AS id,
+	           M.MEETING_TYPE AS type,
+	           M.MEETING_NAME AS name,
+	           M.MEETING_DATE AS dateTime,
+	           M.MEETING_REGISTRATIONEND AS registrationEnd,
+	           M.MEETING_LOCATION AS location,
+	           M.MEETING_PARTICIPANTCOUNT AS participantCount,
+	           M.MEETING_CAPACITY AS capacity,
+	           LISTAGG(MI.IMAGE_URL, ',') WITHIN GROUP (ORDER BY MI.IMAGE_URL) AS image,
+	           M.MEETING_CREATEDBY AS createdBy,
+	           M.MEETING_CANCELDAT AS canceledAt
+	    FROM MEETING M
+	    LEFT JOIN MEETING_IMAGE MI ON M.MEETING_ID = MI.MEETING_ID
+	    WHERE M.MEETING_ID = #{meetingId}
+	    AND M.MEMBER_EMAIL = #{email}
+	    AND M.MEETING_CANCELDAT IS NOT NULL
+	    GROUP BY M.MEETING_ID, 
+	             M.MEETING_TYPE, 
+	             M.MEETING_NAME, 
+	             M.MEETING_DATE, 
+	             M.MEETING_REGISTRATIONEND, 
+	             M.MEETING_LOCATION, 
+	             M.MEETING_PARTICIPANTCOUNT, 
+	             M.MEETING_CAPACITY, 
+	             M.MEETING_CREATEDBY,
+	             M.MEETING_CANCELDAT
+	</select>
+
+	
+	<select id="meetingCheck" resultType="int">
+		SELECT COUNT(*) 
+		FROM MEETING 
+		WHERE MEETING_ID = #{id}
+		AND MEETING_DATE > CURRENT_TIMESTAMP 
+		AND MEETING_CANCELDAT IS NULL
+	</select>
+	
+	<select id="userMeetingCheck" resultType="String">
+		SELECT MEETING_CANCEL 
+		FROM USER_MEETING 
+		WHERE MEETING_ID = #{meetingId}
+		AND MEMBER_EMAIL = #{email}
+	</select>
+	
+	<update id="updateUserMeeting" parameterType="map">
+		UPDATE USER_MEETING
+		SET MEETING_CANCEL = 'N',
+			MEETING_JOINEDAT = CURRENT_TIMESTAMP
+		WHERE MEETING_ID = #{meetingId}
+		AND MEMBER_EMAIL = #{email}
+	</update>
+	
+	<insert id="insertUserMeeting">
+		INSERT INTO USER_MEETING 
+		(MEMBER_EMAIL, MEETING_ID, MEETING_PARTICIPATION, 
+		MEETING_CANCEL, MEETING_JOINEDAT, MEETING_REVIEWED)
+		VALUES(#{email}, #{meetingId}, 'N', 'N', CURRENT_TIMESTAMP, 'N')
+	</insert>
+	
+	<select id="isParticipant" resultType="int">
+		SELECT COUNT(*) 
+        FROM USER_MEETING
+        WHERE MEETING_ID = #{meetingId}
+        AND MEMBER_EMAIL = #{email}
+	</select>
+	
+	<select id="isPastGathering" resultType="int">
+        SELECT COUNT(*) 
+        FROM MEETING
+        WHERE MEETING_ID = #{meetingId}
+        AND MEETING_DATE <![CDATA[ < ]]> CURRENT_TIMESTAMP
+    </select>
+    
+    <update id="cancelParticipation" parameterType="map">
+        UPDATE USER_MEETING
+        SET MEETING_CANCEL = 'Y'
+        WHERE MEETING_ID = #{meetingId}
+        AND MEMBER_EMAIL = #{email}
+        AND MEETING_CANCEL = 'N'
+    </update>
+	
+</mapper>
