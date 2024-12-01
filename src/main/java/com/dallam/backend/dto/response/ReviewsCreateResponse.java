@@ -1,6 +1,6 @@
 package com.dallam.backend.dto.response;
 
-import java.util.Date;
+import java.time.LocalDateTime;
 
 import lombok.Data;
 
@@ -12,5 +12,5 @@ public class ReviewsCreateResponse {
 	private int score;
 	private String comment;
 	private String comments;
-	private Date createdAt;
+	private LocalDateTime  createdAt;
 }

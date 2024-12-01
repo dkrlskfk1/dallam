@@ -1,6 +1,6 @@
 package com.dallam.backend.dto.response;
 
-import java.util.Date;
+import java.time.LocalDateTime;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -11,8 +11,8 @@ public class MemberDetailResponse {
     private String email;
     private String name;
     private String companyName;
-    private Date createdAt;
-    private Date updatedAt;
+    private LocalDateTime  createdAt;
+    private LocalDateTime  updatedAt;
     private String image;
     private int id;
 

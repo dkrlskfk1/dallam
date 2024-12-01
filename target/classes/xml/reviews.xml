@@ -3,118 +3,117 @@
 <mapper namespace="reviews">
 
 	<select id="gatheringsParticipation" resultType="int">
-		SELECT COUNT(*) 
-        FROM USER_MEETING
-        WHERE MEETING_ID = #{meetingId}
-        AND MEMBER_EMAIL = #{email}
-        AND MEETING_PARTICIPATION = 'Y'
+		SELECT count(*) 
+        FROM user_meeting
+        WHERE meeting_id = #{meetingId}
+        AND member_email = #{email}
+        AND meeting_participation = 'Y'
 	</select>
 	
 	<select id="reviewCreateCheck" resultType="int">
-		SELECT COUNT(*) 
-        FROM REVIEW
-        WHERE MEETING_ID = #{meetingId}
-        AND MEMBER_EMAIL = #{email}
+		SELECT count(*) 
+        FROM review
+        WHERE meeting_id = #{meetingId}
+        AND member_email = #{email}
 	</select>
 	
 	<insert id="reviewsCreate">
-		INSERT INTO REVIEW
-		(MEMBER_EMAIL, MEETING_ID, SCORE, REVIEW_COMMENT, CREATE_AT, REVIEW_ID)
+		INSERT INTO review
+		(member_email, meeting_id, score, review_comment, create_at, review_id)
 		VALUES(#{email}, #{meetingId}, #{score}, #{comment}, CURRENT_TIMESTAMP, REVIEW_ID_SEQ.NEXTVAL)
 	</insert>
 	
 	<select id="createReviews" parameterType="map" resultType="com.dallam.backend.dto.response.ReviewsCreateResponse">
 		SELECT 
-			R.REVIEW_ID AS id, 
-			M.MEMBER_NAME AS userId,
-			R.MEETING_ID AS gatheringId,
-			R.SCORE AS score,
-			R.REVIEW_COMMENT AS comments,
-			R.CREATE_AT AS createdAt
-		FROM REVIEW R
-		JOIN MEMBER M ON R.MEMBER_EMAIL = M.MEMBER_EMAIL
-		WHERE R.MEMBER_EMAIL = #{email}
-		AND R.MEETING_ID = #{meetingId}
+			r.review_id AS id, 
+			m.member_name AS userId,
+			r.meeting_id AS gatheringId,
+			r.score AS score,
+			r.review_comment AS comments,
+			r.create_at AS createdAt
+		FROM review r
+		JOIN user m ON r.member_email = m.member_email
+		WHERE r.member_email = #{email}
+		AND r.review_id = #{meetingId}
 	</select>
 	
     <select id="getReviewsList" resultType="com.dallam.backend.dto.response.ReviewsListResponse">
         SELECT 
-            r.REVIEW_ID AS id,
-            r.SCORE AS score,
-            r.REVIEW_COMMENT AS "comment",
-            r.CREATE_AT AS createdAt,
-            m.MEETING_ID AS "gathering.id",
-            m.MEETING_TYPE AS "gathering.type",
-            m.MEETING_NAME AS "gathering.name",
-            m.MEETING_DATE AS "gathering.dateTime",
-            m.MEETING_LOCATION AS "gathering.location",
-            LISTAGG(MI.IMAGE_URL, ',') WITHIN GROUP (ORDER BY MI.IMAGE_URL) AS "gathering.image",
-            mem.MEMBER_NUMBER AS "user.id",
-            mem.MEMBER_NAME AS "user.name",
-            upi.IMAGE_URL AS "user.image"
-        FROM REVIEW r
-        LEFT JOIN MEMBER mem ON r.MEMBER_EMAIL = mem.MEMBER_EMAIL
-        LEFT JOIN USER_PROFILE_IMAGE upi ON mem.MEMBER_EMAIL = upi.MEMBER_EMAIL
-        LEFT JOIN MEETING m ON r.MEETING_ID = m.MEETING_ID
-        LEFT JOIN MEETING_IMAGE mi ON m.MEETING_ID = mi.MEETING_ID
+            r.review_id AS id,
+            r.score AS score,
+            r.review_comment AS "comment",
+            r.create_at AS createdAt,
+            m.meeting_id AS "gathering.id",
+            m.meeting_type AS "gathering.type",
+            m.meeting_name AS "gathering.name",
+            m.meeting_date AS "gathering.dateTime",
+            m.meeting_location AS "gathering.location",
+            GROUP_CONCAT(mi.image_url ORDER BY mi.image_url SEPARATOR ',') AS "gathering.image",
+            mem.member_number AS "user.id",
+            mem.member_name AS "user.name",
+            upi.image_url AS "user.image"
+        FROM review r
+        LEFT JOIN user mem ON r.member_email = mem.member_email
+        LEFT JOIN user_profile_image upi ON mem.member_email = upi.member_email
+        LEFT JOIN meeting m ON r.meeting_id = m.meeting_id
+        LEFT JOIN meeting_image mi ON m.meeting_id = mi.meeting_id
         WHERE 1=1
             <if test="gatheringId != null">
-                AND r.MEETING_ID = #{gatheringId}
+                AND r.meeting_id = #{gatheringId}
             </if>
             <if test="userId != null">
-                AND mem.MEMBER_NUMBER = #{userId}
+                AND mem.member_number = #{userId}
             </if>
             <if test="type != null">
-                AND m.MEETING_TYPE = #{type}
+                AND m.meeting_type = #{type}
             </if>
             <if test="location != null">
-                AND m.MEETING_LOCATION = #{location}
+                AND m.meeting_location = #{location}
             </if>
             <if test="date != null">
-                AND TO_CHAR(m.MEETING_DATE, 'YYYY-MM-DD') = #{date}
+                AND DATE_FORMAT(m.meeting_date, '%Y-%m-%d') = #{date}
             </if>
             <if test="registrationEnd != null">
-                AND TO_CHAR(m.MEETING_REGISTRATIONEND, 'YYYY-MM-DD') = #{registrationEnd}
+                AND DATE_FORMAT(m.meeting_registration_end, '%Y-%m-%d') = #{registrationEnd}
             </if>
         GROUP BY
-        	r.REVIEW_ID, r.SCORE, r.REVIEW_COMMENT, r.CREATE_AT, m.MEETING_ID, m.MEETING_TYPE,   
-			m.MEETING_NAME, m.MEETING_DATE, m.MEETING_LOCATION, mem.MEMBER_NUMBER, mem.MEMBER_NAME, upi.IMAGE_URL
+        	r.review_id, r.score, r.review_comment, r.create_at, m.meeting_id, m.meeting_type,   
+			m.meeting_name, m.meeting_date, m.meeting_location, mem.member_number, mem.member_name, upi.image_url
         ORDER BY 
             <choose>
                 <when test="sortBy != null">
                     ${sortBy} ${sortOrder}
                 </when>
                 <otherwise>
-                    r.CREATE_AT DESC
+                    r.create_at DESC
                 </otherwise>
             </choose>
-        OFFSET #{offset} ROWS
-        FETCH FIRST #{limit} ROWS ONLY
+        LIMIT #{offset} , #{limit}
     </select>
     
     <select id="reviewsScoresList" parameterType="map" resultType="com.dallam.backend.dto.response.ReviewsScoresListResponse">
 	    SELECT 
-	        r.MEETING_ID AS gatheringId,
-	        m.MEETING_TYPE AS type,
-	        ROUND(AVG(r.SCORE), 1) AS averageScore,
-	        SUM(CASE WHEN r.SCORE = 1 THEN 1 ELSE 0 END) AS oneStar,
-	        SUM(CASE WHEN r.SCORE = 2 THEN 1 ELSE 0 END) AS twoStars,
-	        SUM(CASE WHEN r.SCORE = 3 THEN 1 ELSE 0 END) AS threeStars,
-	        SUM(CASE WHEN r.SCORE = 4 THEN 1 ELSE 0 END) AS fourStars,
-	        SUM(CASE WHEN r.SCORE = 5 THEN 1 ELSE 0 END) AS fiveStars
+	        r.meeting_id AS gatheringId,
+	        m.meeting_type AS type,
+	        ROUND(AVG(r.score), 1) AS averageScore,
+	        SUM(CASE WHEN r.score = 1 THEN 1 ELSE 0 END) AS oneStar,
+	        SUM(CASE WHEN r.score = 2 THEN 1 ELSE 0 END) AS twoStars,
+	        SUM(CASE WHEN r.score = 3 THEN 1 ELSE 0 END) AS threeStars,
+	        SUM(CASE WHEN r.score = 4 THEN 1 ELSE 0 END) AS fourStars,
+	        SUM(CASE WHEN r.score = 5 THEN 1 ELSE 0 END) AS fiveStars
 	    FROM 
-	        REVIEW r
+	        review r
 	    LEFT JOIN 
-	        MEETING m ON r.MEETING_ID = m.MEETING_ID
-	    WHERE r.MEETING_ID IN
+	        meeting m ON r.meeting_id = m.meeting_id
+	    WHERE r.meeting_id IN
 	        <foreach item="id" collection="gatheringIds" open="(" separator="," close=")">
 		        #{id}
 		    </foreach>
-		    AND m.MEETING_TYPE = #{type}
+		    AND m.meeting_type = #{type}
 	    GROUP BY 
-	        r.MEETING_ID, m.MEETING_TYPE
+	        r.meeting_id, m.meeting_type
 	    ORDER BY 
-	        r.MEETING_ID
+	        r.meeting_id
 	</select>
 	
 </mapper>

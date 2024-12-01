@@ -1,9 +1,10 @@
 package com.dallam.backend.service;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -170,7 +171,7 @@ public class GatheringsService {
 
         String userId = null; // 모임 주체자의 이름
         int gatheringId = request.getId(); // 모임 ID
-        Date joinedAt = null; // 모임 참가 신청일
+        LocalDateTime joinedAt = null; // 모임 참가 신청일
         List<Participant> participants = new ArrayList<>();
 
         for (Map<String, Object> row : rawData) {
@@ -181,9 +182,12 @@ public class GatheringsService {
                 Object joinedAtObject = row.get("joinedAt");
 
                 if (joinedAtObject instanceof java.sql.Timestamp) {
-                    joinedAt = new Date(((java.sql.Timestamp) joinedAtObject).getTime());
+                    joinedAt = ((java.sql.Timestamp) joinedAtObject).toLocalDateTime();
                 } else if (joinedAtObject instanceof java.util.Date) {
-                    joinedAt = (java.util.Date) joinedAtObject;
+                    joinedAt = ((java.util.Date) joinedAtObject)
+                        .toInstant()
+                        .atZone(ZoneId.systemDefault())
+                        .toLocalDateTime();
                 }
             }
 

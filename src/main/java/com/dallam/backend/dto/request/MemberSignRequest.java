@@ -1,6 +1,6 @@
 package com.dallam.backend.dto.request;
 
-import java.util.Date;
+import java.time.LocalDateTime;
 
 import lombok.Data;
 
@@ -10,8 +10,8 @@ public class MemberSignRequest {
     private String password;
     private String name;
     private String companyName;
-    private Date createAt;
-    private Date updateAt;
+    private LocalDateTime createAt;
+    private LocalDateTime updateAt;
 
     public boolean isEmailValid() {
         String emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$";

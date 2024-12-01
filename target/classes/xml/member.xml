@@ -2,56 +2,56 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="member">
 	<select id="checkEmailExists" resultType="int">
-		SELECT COUNT(*) FROM MEMBER WHERE MEMBER_EMAIL = #{email}
+		SELECT count(*) FROM user WHERE member_email = #{email}
 	</select>
 	
 	<insert id="insertMember">
-		INSERT INTO MEMBER (MEMBER_EMAIL, MEMBER_PWD, MEMBER_NAME, COMPANY_NAME, CREATE_AT, UPDATE_AT, MEMBER_NUMBER)
-		VALUES(#{email},#{password},#{name},#{companyName},CURRENT_TIMESTAMP,CURRENT_TIMESTAMP, MEMBER_SEQ.NEXTVAL)
+		INSERT INTO user (member_email, member_pwd, member_name, company_name, create_at, update_at, member_number)
+		VALUES(#{email},#{password},#{name},#{companyName},CURRENT_TIMESTAMP,CURRENT_TIMESTAMP, NULL)
 	</insert>
 	
 	<select id="findByEmail" resultType="com.dallam.backend.model.Member">
-		SELECT MEMBER_EMAIL AS email,
-			   MEMBER_PWD AS password,
-			   MEMBER_NAME AS name,
-			   COMPANY_NAME AS companyName,
-			   CREATE_AT AS createAt,
-			   UPDATE_AT AS updateAt
-		FROM MEMBER
-		WHERE MEMBER_EMAIL = #{email}
+		SELECT member_email AS email,
+			   member_pwd AS password,
+			   member_name AS name,
+			   company_name AS companyName,
+			   create_at AS createAt,
+			   update_at AS updateAt
+		FROM user
+		WHERE member_email = #{email}
 	</select>
 	
 	<select id="getMemberInfo" resultType="com.dallam.backend.dto.response.MemberDetailResponse">
-		SELECT M.MEMBER_EMAIL AS email,
-		       M.MEMBER_NAME AS name,
-		       M.COMPANY_NAME AS companyName,
-		       M.CREATE_AT AS createAt,
-		       M.UPDATE_AT AS updateAt,
-		       UP.IMAGE_URL AS image,
-		       COALESCE(LISTAGG(UM.MEETING_ID, ',') WITHIN GROUP (ORDER BY UM.MEETING_ID),'0') AS id
-		FROM MEMBER M
-		LEFT JOIN USER_PROFILE_IMAGE UP ON M.MEMBER_EMAIL = UP.MEMBER_EMAIL
-		LEFT JOIN USER_MEETING UM ON M.MEMBER_EMAIL = UM.MEMBER_EMAIL
-		WHERE M.MEMBER_EMAIL = #{email}
-		GROUP BY M.MEMBER_EMAIL, M.MEMBER_PWD, M.MEMBER_NAME, M.COMPANY_NAME, M.CREATE_AT, M.UPDATE_AT, UP.IMAGE_URL
+		SELECT m.member_email AS email,
+		       m.member_name AS name,
+		       m.company_name AS companyName,
+		       m.create_at AS createAt,
+		       m.update_at AS updateAt,
+		       up.image_url AS image,
+		       COALESCE(LISTAGG(um.meeting_id, ',') WITHIN GROUP (ORDER BY um.meeting_id),'0') AS id
+		FROM user m
+		LEFT JOIN user_profile_image up ON m.member_email = up.member_email
+		LEFT JOIN user_meeting um ON m.member_email = um.member_email
+		WHERE m.member_email = #{email}
+		GROUP BY m.member_email, m.member_name, m.company_name, m.create_at, m.update_at, up.image_url
 
 	</select>
 	
 	<select id="findByImageUrl" resultType="String">
-		SELECT IMAGE_URL
-		FROM USER_PROFILE_IMAGE
-		WHERE MEMBER_EMAIL = #{email}
+		SELECT image_url
+		FROM user_profile_image
+		WHERE member_email = #{email}
 	</select>
 	
 	<update id="updateMember" parameterType="map">
-		UPDATE MEMBER
-		SET COMPANY_NAME = #{companyName},
-			UPDATE_AT = CURRENT_TIMESTAMP
-		WHERE MEMBER_EMAIL = #{email}
+		UPDATE user
+		SET company_name = #{companyName},
+			update_at = CURRENT_TIMESTAMP
+		WHERE member_email = #{email}
 	</update>
 	
 	<insert id="insertImage" parameterType="map">
-		INSERT INTO USER_PROFILE_IMAGE 
+		INSERT INTO user_profile_image 
 		VALUES(#{email},
 				#{imageUrl},
 				#{imageName},
@@ -59,11 +59,11 @@
 	</insert>
 	
 	<update id="updateImage" parameterType="map">
-		UPDATE USER_PROFILE_IMAGE
-		SET IMAGE_URL = #{imageUrl},
-			IMAGE_NAME = #{imageName},
-			UPLOADED_AT = CURRENT_TIMESTAMP
-		WHERE MEMBER_EMAIL = #{email}
+		UPDATE user_profile_image
+		SET image_url = #{imageUrl},
+			image_name = #{imageName},
+			uploaded_at = CURRENT_TIMESTAMP
+		WHERE member_email = #{email}
 	</update>
 	
 	
