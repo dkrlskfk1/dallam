@@ -1,5 +1,7 @@
-| HTTP 메서드 | URL                | 설명                  | 요청 본문        | Success Response        | Error Response        |
+| HTTP 메서드 | URL                | 설명                  | Request        | Success Response        | Error Response        |
 |-------------|--------------------|-----------------------|------------------|------------------|------------------|
-| GET         | `/api/hello`       | Hello 메시지를 반환   | 없음             | `{ "message": "Hello" }` | `{ "message": "Hello" }` |
-| POST        | `/api/create`      | 새로운 데이터를 생성 | `{ "name": "A" }` | `{ "id": 1, "name": "A" }` | `{ "message": "Hello" }` |
-| DELETE      | `/api/delete/{id}` | 데이터를 삭제         | 없음             | `{ "message": "삭제 완료" }` | `{ "message": "Hello" }` |
+| POST         | /auths/signup       | 사용자 회원가입   | {"email": "string","password": "string","name": "string","companyName": "string"}             | `{ "message": "Hello" }` | `{ "message": "Hello" }` |
+| POST        | /auths/signin      | 사용자 로그인 | `{ "name": "A" }` | `{ "id": 1, "name": "A" }` | `{ "message": "Hello" }` |
+| POST      | /auths/signout | 사용자 로그아웃         | 없음             | `{ "message": "삭제 완료" }` | `{ "message": "Hello" }` |
+| GET      | /auths/user | 회원 정보 확인         | 없음             | `{ "message": "삭제 완료" }` | `{ "message": "Hello" }` |
+| PUT      | /auths/user | 회원 정보 수정         | 없음             | `{ "message": "삭제 완료" }` | `{ "message": "Hello" }` |
